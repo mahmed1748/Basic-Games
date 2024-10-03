@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Bird - Enhanced Graphics Edition</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #87CEEB;
+            font-family: Arial, sans-serif;
+        }
+
+        #gameCanvas {
+            border: 2px solid #000;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let score = 0;
+        let highScore = 0;
+
+        // Bird properties
+        const bird = {
+            x: 50,
+            y: canvas.height / 2,
+            velocity: 0,
+            gravity: 0.5,
+            lift: -10,
+            size: 30,
+            wingAngle: 0,
+            wingSpeed: 0.1
+        };
+
+        // Building properties
+        const buildings = [];
+        const buildingWidth = 80;
+        const gap = 150;
+
+        // Game state
+        let gameStarted = false;
+
+        // Load images
+        const birdImg = new Image();
+        birdImg.src = 'https://opengameart.org/sites/default/files/bird_0.png';
+        const buildingImg = new Image();
+        buildingImg.src = 'https://opengameart.org/sites/default/files/building.png';
+        const backgroundImg = new Image();
+        backgroundImg.src = 'https://opengameart.org/sites/default/files/background.png';
+        const cloudImg = new Image();
+        cloudImg.src = 'https://opengameart.org/sites/default/files/cloud.png';
+
+        // Cloud properties
+        const clouds = [];
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update() {
+            if (!gameStarted) {
+                gameStarted = true;
+            }
+
+            bird.velocity += bird.gravity;
+            bird.y += bird.velocity;
+            bird.wingAngle = Math.sin(Date.now() * bird.wingSpeed) * 30;
+
+            if (bird.y > canvas.height - bird.size) {
+                bird.y = canvas.height - bird.size;
+                bird.velocity = 0;
+            }
+
+            if (buildings.length === 0 || buildings[buildings.length - 1].x < canvas.width - 200) {
+                addBuilding();
+            }
+
+            buildings.forEach((building, index) => {
+                building.x -= 2;
+
+                if (building.x + buildingWidth < 0) {
+                    buildings.splice(index, 1);
+                    score++;
+                }
+
+                if (
+                    bird.x < building.x + buildingWidth &&
+                    bird.x + bird.size > building.x &&
+                    (bird.y < building.top || bird.y + bird.size > building.bottom)
+                ) {
+                    gameOver();
+                }
+            });
+
+            // Update clouds
+            if (clouds.length < 3) {
+                addCloud();
+            }
+
+            clouds.forEach((cloud, index) => {
+                cloud.x -= cloud.speed;
+
+                if (cloud.x + cloud.width < 0) {
+                    clouds.splice(index, 1);
+                }
+            });
+        }
+
+        function draw() {
+            // Draw sky gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, "#87CEEB");
+            gradient.addColorStop(1, "#E0F6FF");
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw clouds
+            clouds.forEach(cloud => {
+                ctx.drawImage(cloudImg, cloud.x, cloud.y, cloud.width, cloud.height);
+            });
+
+            // Draw buildings with enhanced graphics
+            buildings.forEach(building => {
+                // Draw main building
+                ctx.drawImage(buildingImg, building.x, 0, buildingWidth, building.top);
+                ctx.drawImage(buildingImg, building.x, building.bottom, buildingWidth, canvas.height - building.bottom);
+
+                // Add windows
+                ctx.fillStyle = "rgba(255, 255, 0, 0.5)";
+                for (let i = 10; i < building.top; i += 30) {
+                    for (let j = 5; j < buildingWidth - 10; j += 20) {
+                        ctx.fillRect(building.x + j, i, 10, 20);
+                    }
+                }
+                for (let i = building.bottom + 10; i < canvas.height; i += 30) {
+                    for (let j = 5; j < buildingWidth - 10; j += 20) {
+                        ctx.fillRect(building.x + j, i, 10, 20);
+                    }
+                }
+            });
+
+            // Draw bird with enhanced graphics
+            ctx.save();
+            ctx.translate(bird.x + bird.size / 2, bird.y + bird.size / 2);
+            ctx.rotate(bird.velocity * 0.1);
+
+            // Draw bird body
+            ctx.drawImage(birdImg, -bird.size / 2, -bird.size / 2, bird.size, bird.size);
+
+            // Draw wings
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(-bird.size / 2, bird.wingAngle);
+            ctx.lineTo(-bird.size / 2, -bird.wingAngle);
+            ctx.closePath();
+            ctx.fill();
+
+            // Draw eye
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(bird.size / 4, -bird.size / 8, bird.size / 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(bird.size / 4, -bird.size / 8, bird.size / 20, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+
+            // Draw score
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 3;
+            ctx.font = 'bold 24px Arial';
+            ctx.strokeText(`Score: ${score}`, 10, 30);
+            ctx.fillText(`Score: ${score}`, 10, 30);
+            ctx.strokeText(`High Score: ${highScore}`, 10, 60);
+            ctx.fillText(`High Score: ${highScore}`, 10, 60);
+        }
+
+        function addBuilding() {
+            const minHeight = 50;
+            const maxHeight = canvas.height - gap - minHeight;
+            const height = Math.floor(Math.random() * (maxHeight - minHeight + 1) + minHeight);
+
+            buildings.push({
+                x: canvas.width,
+                top: height,
+                bottom: height + gap
+            });
+        }
+
+        function addCloud() {
+            clouds.push({
+                x: canvas.width,
+                y: Math.random() * canvas.height / 2,
+                width: 60 + Math.random() * 40,
+                height: 30 + Math.random() * 20,
+                speed: 0.5 + Math.random() * 0.5
+            });
+        }
+
+        function gameOver() {
+            if (score > highScore) {
+                highScore = score;
+            }
+            score = 0;
+            bird.y = canvas.height / 2;
+            bird.velocity = 0;
+            buildings.length = 0;
+        }
+
+        canvas.addEventListener('click', () => {
+            bird.velocity = bird.lift;
+        });
+
+        document.addEventListener('keydown', event => {
+            if (event.code === 'Space') {
+                bird.velocity = bird.lift;
+            }
+        });
+
+        gameLoop();
+    </script>
+</body>
+
+</html>
