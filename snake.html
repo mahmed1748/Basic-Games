@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game - 3 Levels</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        #game-container {
+            display: flex;
+            align-items: flex-start;
+        }
+        #game-area {
+            text-align: center;
+        }
+        #leaderboard {
+            margin-left: 20px;
+            text-align: left;
+        }
+        #level-selector {
+            margin-top: 20px;
+        }
+        button {
+            margin: 0 5px;
+            padding: 5px 10px;
+            font-size: 16px;
+        }
+        #game-board {
+            border: 2px solid #000;
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="game-area">
+            <h1>Snake Game</h1>
+            <canvas id="game-board" width="400" height="400"></canvas>
+            <div id="level-selector">
+                <button onclick="setLevel(1)">Level 1</button>
+                <button onclick="setLevel(2)">Level 2</button>
+                <button onclick="setLevel(3)">Level 3</button>
+            </div>
+            <p>Score: <span id="score">0</span></p>
+        </div>
+        <div id="leaderboard">
+            <h2>Leaderboard</h2>
+            <ol id="leaderboard-list"></ol>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('game-board');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+
+        let snake = [{x: 200, y: 200}];
+        let food = {};
+        let direction = 'right';
+        let score = 0;
+        let speed = 100;
+        let gameLoop;
+        let username = '';
+        let leaderboard = [
+            { name: 'Alice', score: 10, level: 2 },
+            { name: 'Bob', score: 8, level: 1 },
+            { name: 'Charlie', score: 15, level: 3 },
+            { name: 'David', score: 12, level: 2 },
+            { name: 'Eve', score: 7, level: 1 }
+        ];
+
+        function startGame() {
+            username = prompt('Enter your username:');
+            if (!username) username = 'Anonymous';
+            updateLeaderboard();
+            setLevel(1);
+        }
+
+        function updateLeaderboard() {
+            const leaderboardList = document.getElementById('leaderboard-list');
+            leaderboardList.innerHTML = '';
+            leaderboard.sort((a, b) => b.score - a.score);
+            leaderboard.slice(0, 5).forEach(entry => {
+                const li = document.createElement('li');
+                li.textContent = `${entry.name}: ${entry.score} (Level ${entry.level})`;
+                leaderboardList.appendChild(li);
+            });
+        }
+
+        function setLevel(level) {
+            clearInterval(gameLoop);
+            snake = [{x: 200, y: 200}];
+            direction = 'right';
+            score = 0;
+            scoreElement.textContent = score;
+
+            switch(level) {
+                case 1:
+                    speed = 100;
+                    break;
+                case 2:
+                    speed = 75;
+                    break;
+                case 3:
+                    speed = 50;
+                    break;
+            }
+
+            createFood();
+            gameLoop = setInterval(game, speed);
+        }
+
+        function createFood() {
+            food = {
+                x: Math.floor(Math.random() * 20) * 20,
+                y: Math.floor(Math.random() * 20) * 20
+            };
+        }
+
+        function game() {
+            const newHead = {...snake[0]};
+
+            switch(direction) {
+                case 'up':
+                    newHead.y -= 20;
+                    break;
+                case 'down':
+                    newHead.y += 20;
+                    break;
+                case 'left':
+                    newHead.x -= 20;
+                    break;
+                case 'right':
+                    newHead.x += 20;
+                    break;
+            }
+
+            if (newHead.x === food.x && newHead.y === food.y) {
+                score++;
+                scoreElement.textContent = score;
+                createFood();
+            } else {
+                snake.pop();
+            }
+
+            if (newHead.x < 0 || newHead.x > 380 || newHead.y < 0 || newHead.y > 380 || snake.some(segment => segment.x === newHead.x && segment.y === newHead.y)) {
+                clearInterval(gameLoop);
+                alert('Game Over! Your score: ' + score);
+                updateLeaderboardWithNewScore();
+                return;
+            }
+
+            snake.unshift(newHead);
+
+            // Clear the canvas and draw the background
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = 'black';
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+            // Draw the snake
+            snake.forEach((segment, index) => {
+                if (index === 0) {
+                    drawSnakeHead(segment.x, segment.y);
+                } else {
+                    drawSnakeBody(segment.x, segment.y);
+                }
+            });
+
+            // Draw the food
+            drawFood(food.x, food.y);
+        }
+
+        function drawSnakeHead(x, y) {
+            ctx.fillStyle = '#4CAF50';
+            ctx.beginPath();
+            ctx.roundRect(x, y, 20, 20, 5);
+            ctx.fill();
+
+            // Draw eyes
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(x + 5, y + 6, 3, 0, Math.PI * 2);
+            ctx.arc(x + 15, y + 6, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(x + 5, y + 6, 1.5, 0, Math.PI * 2);
+            ctx.arc(x + 15, y + 6, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawSnakeBody(x, y) {
+            ctx.fillStyle = '#66BB6A';
+            ctx.beginPath();
+            ctx.roundRect(x, y, 20, 20, 5);
+            ctx.fill();
+        }
+
+        function drawFood(x, y) {
+            ctx.fillStyle = '#FF5722';
+            ctx.beginPath();
+            ctx.arc(x + 10, y + 10, 10, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function updateLeaderboardWithNewScore() {
+            const currentLevel = speed === 100 ? 1 : (speed === 75 ? 2 : 3);
+            const playerIndex = leaderboard.findIndex(entry => entry.name === username);
+            
+            if (playerIndex !== -1) {
+                if (score > leaderboard[playerIndex].score) {
+                    leaderboard[playerIndex] = { name: username, score: score, level: currentLevel };
+                }
+            } else {
+                leaderboard.push({ name: username, score: score, level: currentLevel });
+            }
+            
+            leaderboard.sort((a, b) => b.score - a.score);
+            leaderboard = leaderboard.slice(0, 5);
+            updateLeaderboard();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowUp':
+                    if (direction !== 'down') direction = 'up';
+                    break;
+                case 'ArrowDown':
+                    if (direction !== 'up') direction = 'down';
+                    break;
+                case 'ArrowLeft':
+                    if (direction !== 'right') direction = 'left';
+                    break;
+                case 'ArrowRight':
+                    if (direction !== 'left') direction = 'right';
+                    break;
+            }
+        });
+
+        startGame();
+    </script>
+</body>
+</html>
